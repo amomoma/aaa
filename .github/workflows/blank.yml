@@ -1,0 +1,45 @@
+name: Download, Split & Upload to Filebin
+
+on:
+  workflow_dispatch:
+    inputs:
+      download_url:
+        description: "Direct download URL"
+        required: true
+      split_size:
+        description: "Split size (e.g. 1g, 500m)"
+        required: false
+        default: "1g"
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full curl
+
+      - name: Download file
+        run: |
+          mkdir work
+          cd work
+          curl -L "${{ github.event.inputs.download_url }}" -o input.file
+
+      - name: Split file
+        run: |
+          cd work
+          7z a -v${{ github.event.inputs.split_size }} split.7z input.file
+
+      - name: Upload splits to Filebin
+        run: |
+          cd work
+          BIN_NAME="github-$(date +%s)"
+          echo "Uploading to filebin bin: $BIN_NAME"
+
+          for f in split.7z.*; do
+            curl -T "$f" "https://filebin.net/$BIN_NAME/$f"
+          done
+
+          echo ""
+          echo "✅ Download links:"
+          echo "https://filebin.net/$BIN_NAME"
